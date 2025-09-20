@@ -1,0 +1,83 @@
+:root{
+  --mainColor: #232848;
+  --mainColorLight:rgb(58, 63, 96);
+}
+
+h1, h2, p, h3, ul{
+  color: white;
+}
+
+h1,h2,h3,p{
+  margin: 0;
+}
+
+.botonesRow{
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.botonesRow p{
+  width: 10rem;
+  text-align: center;
+}
+
+.botonArrow{
+  background-color: var(--mainColor);
+  border: none;
+  border-radius: 1rem;
+  padding: 1rem;
+  color: white;
+  transition: background-color 0.3s;
+}
+
+.botonArrow:hover{
+  background-color: var(--mainColorLight);
+}
+
+.display-2-columnas{
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.inputLabel{
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 1rem;
+}
+
+.inputLabel label{
+  color: #56a1ee;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.inputLabel input{
+  background-color: #161e3a;
+  padding: 0.6rem;
+  border-radius: 0.4rem;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.botonEjecutar{
+  font-weight: bold;
+  font-size: 0.9rem;
+  border: 2px solid var(--mainColorLight);
+  width: 100%;
+}
+
+.displayResultado{
+  display: flex;
+  background-color: var(--mainColorLight);
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  border-radius: 1rem;
+}
