@@ -1,6 +1,7 @@
 :root{
   --mainColor: #232848;
   --mainColorLight:rgb(58, 63, 96);
+  --mainColorDark: #161e3a;
 }
 
 h1, h2, p, h3, ul{
@@ -9,6 +10,11 @@ h1, h2, p, h3, ul{
 
 h1,h2,h3,p{
   margin: 0;
+}
+
+.botonesContainer{
+  display: flex;
+  gap: 2rem;
 }
 
 .botonesRow{
@@ -49,7 +55,7 @@ h1,h2,h3,p{
   margin-bottom: 1rem;
 }
 
-.inputLabel label{
+.inputLabel label, .blueLabel{
   color: #56a1ee;
   font-size: 0.9rem;
   font-weight: bold;
@@ -79,5 +85,79 @@ h1,h2,h3,p{
   justify-content: center;
   text-align: center;
   flex-direction: column;
+  border-radius: 1rem;
+  min-height: 8rem;
+  margin-bottom: 1rem;
+}
+
+.historialContainer {
+  margin-top: 2rem;
+  font-family: Arial, sans-serif;
+}
+
+.historialContainer h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.historialList {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px; 
+}
+
+.historialItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--mainColorLight);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.historialInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.historialDate {
+  font-size: 1rem;
+  color: #888;
+}
+
+.historialOperation {
+  font-size: 1rem;
+  font-weight: 500;
+  margin-top: 4px;
+  display: flex;
+}
+
+.historialResult {
+  color: #56a1ee;
+  font-weight: bold;
+}
+
+.historialType {
+  font-size: 1rem;
+  color: #ffffff;
+  text-transform: capitalize;
+  font-weight: bold;
+}
+
+.divFiltro{
+  display: flex;
+  flex-direction: column;
+  gap: 0.40rem;
+}
+
+.inputFiltro{
+  background-color: var(--mainColorDark);
+  border: none;
+  color: white;
+  padding: 0.8rem;
   border-radius: 1rem;
 }

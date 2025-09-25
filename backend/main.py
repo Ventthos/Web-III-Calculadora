@@ -1,6 +1,6 @@
-import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING, DESCENDING
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
 from models.SingleOperationBody import SingleOperationBody
@@ -60,7 +60,8 @@ def sumar(body: SingleOperationBody):
         "resultado": resultado,
         "numeros": body.numeros,
         "operacion": "suma",
-        "date": datetime.datetime.now(tz=datetime.timezone.utc),
+        "date": datetime.now(tz=timezone.utc)
+
     }
     collection_historial.insert_one(document)
 
@@ -80,7 +81,7 @@ def restar(body: SingleOperationBody):
         "resultado": resultado,
         "numeros": body.numeros,
         "operacion": "resta",
-        "date": datetime.datetime.now(tz=datetime.timezone.utc),
+        "date": datetime.now(tz=timezone.utc)
     }
     collection_historial.insert_one(document)
 
@@ -99,7 +100,7 @@ def multiplicar(body: SingleOperationBody):
         "resultado": resultado,
         "numeros": body.numeros,
         "operacion": "multiplicacion",
-        "date": datetime.datetime.now(tz=datetime.timezone.utc),
+        "date": datetime.now(tz=timezone.utc)
     }
     collection_historial.insert_one(document)
 
@@ -131,7 +132,7 @@ def dividir(body: SingleOperationBody):
         "resultado": resultado,
         "numeros": body.numeros,
         "operacion": "division",
-        "date": datetime.datetime.now(tz=datetime.timezone.utc),
+        "date": datetime.now(tz=timezone.utc)
     }
     collection_historial.insert_one(document)
 
@@ -168,16 +169,64 @@ def multiple_operacion(operations: MultipleOperationBody):
 
 
 @app.get("/calculadora/historial")
-def obtener_historial():
-    operaciones = collection_historial.find({})
+def obtener_historial(operacion: str = None, fecha: datetime = None, ordenarPor: str = None, orden: str = None):
+    if operacion != None and operacion not in ("suma", "resta", "multiplicacion", "division"):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Operacion no soportada",
+                "operacion": operacion
+            }
+        )
+    if fecha != None and type(fecha) != datetime:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Fecha no valida",
+                "fecha": fecha
+            }
+        )
+    if ordenarPor != None and ordenarPor not in ("date", "resultado"):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Ordenar por no soportado",
+                "ordenarPor": ordenarPor
+            }
+        )
+    
+    if orden != None and orden not in ("asc", "desc"):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Orden no soportado",
+                "orden": orden
+            }
+        )
+    
+    filtro = {}
+    if operacion:
+        filtro["operacion"] = operacion
+    if fecha:
+        filtro["date"] = {
+            "$gte": datetime(fecha.year, fecha.month, fecha.day),
+            "$lt": datetime(fecha.year, fecha.month, fecha.day, 23, 59, 59)
+        }
+
+    orden_mongo = ASCENDING if orden == "asc" else DESCENDING
+    sort = [(ordenarPor, orden_mongo)] if ordenarPor else None
+
+    cursor = collection_historial.find(filtro)
+    if sort:
+        cursor = cursor.sort(sort)
+
     historial = []
-    for operacion in operaciones:
+    for doc in cursor:
         historial.append({
-            "a": operacion["a"],
-            "b": operacion["b"],
-            "resultado": operacion["resultado"],
-            "date": operacion["date"].isoformat(),
-            "operacion": operacion["operacion"]
+            "numeros": doc["numeros"],
+            "resultado": doc["resultado"],
+            "date": doc["date"].isoformat(),
+            "operacion": doc["operacion"]
         })
     return {"historial": historial}
 
