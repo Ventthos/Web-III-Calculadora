@@ -1,11 +1,15 @@
 from datetime import datetime, timezone
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
 from models.SingleOperationBody import SingleOperationBody
 from typing import List
 from models.MultipleOperationBody import MultipleOperationBody
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+
 
 app = FastAPI()
 app.add_middleware(
@@ -16,33 +20,58 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def format_validation_errors(errors, operacion: str = None):
+    errores = []
+    for err in errors:
+        loc_type = err["loc"][0]
+        loc_rest = " -> ".join([str(l) for l in err["loc"][1:]])
+        input_value = err.get("input", "")
+        if loc_rest:
+            errores.append(f"Error en {loc_type} -> {loc_rest}: '{input_value}' no es válido.")
+        else:
+            errores.append(f"Error en {loc_type}: '{input_value}' no es válido.")
+    
+    respuesta = {"error": errores}
+    if operacion:
+        respuesta["operacion"] = operacion
+    return respuesta
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": format_validation_errors(exc.errors())}
+    )
+
+
 # Conexión a MongoDB
 mongo_client = MongoClient("mongodb://admin_user:web3@mongo:27017")
 database = mongo_client["practica1"]
 collection_historial = database["historial"]
 
-def checkAllElementsAreNumbers(array):
+def check_all_elements_are_numbers(array):
     if type(array) != list:
         return False
     if not all(isinstance(element, (int, float)) for element in array):
         return False
     return True
 
-def checkAllNumbersArePositive(array):
-    if checkAllElementsAreNumbers(array) == False:
+def check_all_numbers_are_positive(array):
+    if check_all_elements_are_numbers(array) == False:
         return False
     
     if not all(element >= 0 for element in array):
         return False
     return True
 
-def returnNegativeNumberError(operacion: str, numeros: list):
+def return_negative_number_error(operacion: str, numeros: list):
     raise HTTPException(
         status_code=400,
         detail={
             "error": "No se permiten números negativos",
             "operacion": operacion,
-            "numeros": numeros
+            "numerosNegativosEnviados": numeros
         }
     )
 
@@ -50,8 +79,9 @@ def returnNegativeNumberError(operacion: str, numeros: list):
 @app.post("/calculadora/sum")
 def sumar(body: SingleOperationBody):
     resultado = 0
-    if not checkAllNumbersArePositive(body.numeros):
-        return returnNegativeNumberError("suma", body.numeros)
+    if not check_all_numbers_are_positive(body.numeros):
+        negativeNumbers = [element for element in body.numeros if element < 0]
+        return return_negative_number_error("suma", negativeNumbers)
 
     for element in body.numeros:
         resultado = resultado + element
@@ -69,8 +99,9 @@ def sumar(body: SingleOperationBody):
 
 @app.post("/calculadora/resta")
 def restar(body: SingleOperationBody):  
-    if not checkAllNumbersArePositive(body.numeros):
-        return returnNegativeNumberError("resta", body.numeros)
+    if not check_all_numbers_are_positive(body.numeros):
+        negativeNumbers = [element for element in body.numeros if element < 0]
+        return return_negative_number_error("resta", negativeNumbers)
     
     resultado = body.numeros[0]
     numerosASumar = body.numeros[1:]
@@ -90,8 +121,9 @@ def restar(body: SingleOperationBody):
 @app.post("/calculadora/mult")
 def multiplicar(body: SingleOperationBody):
     resultado = 1
-    if not checkAllNumbersArePositive(body.numeros):
-        return returnNegativeNumberError("multiplicacion", body.numeros)
+    if not check_all_numbers_are_positive(body.numeros):
+        negativeNumbers = [element for element in body.numeros if element < 0]
+        return return_negative_number_error("multiplicacion", negativeNumbers)
 
     for element in body.numeros:
         resultado = resultado * element
@@ -109,8 +141,9 @@ def multiplicar(body: SingleOperationBody):
 
 @app.post("/calculadora/div")
 def dividir(body: SingleOperationBody):
-    if not checkAllNumbersArePositive(body.numeros):
-        return returnNegativeNumberError("division", body.numeros)
+    if not check_all_numbers_are_positive(body.numeros):
+        negativeNumbers = [element for element in body.numeros if element < 0]
+        return return_negative_number_error("division", negativeNumbers)
 
     resultado = body.numeros[0]
     numerosADividir = body.numeros[1:]
@@ -141,9 +174,13 @@ def dividir(body: SingleOperationBody):
 @app.post("/calculadora/operacionMultiple")
 def multiple_operacion(operations: MultipleOperationBody):
     responses = []
+    has_error = False
+
     for operation in operations.operaciones:
-        singleOperation = SingleOperationBody(numeros=operation.numeros)
         try:
+            # aquí validas cada operación de forma independiente
+            singleOperation = SingleOperationBody(numeros=operation.numeros)
+
             if operation.operacion == "suma":
                 responses.append(sumar(singleOperation))
             elif operation.operacion == "resta":
@@ -153,18 +190,22 @@ def multiple_operacion(operations: MultipleOperationBody):
             elif operation.operacion == "division":
                 responses.append(dividir(singleOperation))
             else:
+                has_error = True
                 responses.append({
                     "error": "Operacion no soportada",
                     "operacion": operation.operacion,
                     "numeros": operation.numeros
                 })
+
+        except ValidationError as e:
+            has_error = True
+            responses.append(format_validation_errors(e.errors(), operation.operacion))
         except HTTPException as e:
-            responses.append({
-                "error": e.detail.get("error") if isinstance(e.detail, dict) else str(e.detail),
-                "operacion": operation.operacion,
-                "numeros": operation.numeros
-            })
-    return responses
+            has_error = True
+            responses.append(e.detail)
+
+    status_code = 206 if has_error else 200
+    return JSONResponse(content=responses, status_code=status_code)
 
 
 
@@ -229,4 +270,5 @@ def obtener_historial(operacion: str = None, fecha: datetime = None, ordenarPor:
             "operacion": doc["operacion"]
         })
     return {"historial": historial}
+
 
