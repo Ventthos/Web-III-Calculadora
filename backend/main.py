@@ -10,7 +10,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -36,14 +35,12 @@ def format_validation_errors(errors, operacion: str = None):
         respuesta["operacion"] = operacion
     return respuesta
 
-
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=422,
         content={"detail": format_validation_errors(exc.errors())}
     )
-
 
 # Conexión a MongoDB
 mongo_client = MongoClient("mongodb://admin_user:web3@mongo:27017")
@@ -75,6 +72,14 @@ def return_negative_number_error(operacion: str, numeros: list):
         }
     )
 
+def save_in_db(operacion: str, numeros: list, resultado: float):
+    document = {
+        "resultado": resultado,
+        "numeros": numeros,
+        "operacion": operacion,
+        "date": datetime.now(tz=timezone.utc)
+    }
+    collection_historial.insert_one(document)
 
 @app.post("/calculadora/sum")
 def sumar(body: SingleOperationBody):
@@ -86,14 +91,7 @@ def sumar(body: SingleOperationBody):
     for element in body.numeros:
         resultado = resultado + element
 
-    document = {
-        "resultado": resultado,
-        "numeros": body.numeros,
-        "operacion": "suma",
-        "date": datetime.now(tz=timezone.utc)
-
-    }
-    collection_historial.insert_one(document)
+    save_in_db("suma", body.numeros, resultado)
 
     return {"numeros": body.numeros, "resultado": resultado, "operacion": "suma"}
 
@@ -108,13 +106,7 @@ def restar(body: SingleOperationBody):
     for element in numerosASumar:
         resultado = resultado - element
 
-    document = {
-        "resultado": resultado,
-        "numeros": body.numeros,
-        "operacion": "resta",
-        "date": datetime.now(tz=timezone.utc)
-    }
-    collection_historial.insert_one(document)
+    save_in_db("resta", body.numeros, resultado)
 
     return {"numeros": body.numeros, "resultado": resultado, "operacion": "resta"}
 
@@ -128,13 +120,7 @@ def multiplicar(body: SingleOperationBody):
     for element in body.numeros:
         resultado = resultado * element
 
-    document = {
-        "resultado": resultado,
-        "numeros": body.numeros,
-        "operacion": "multiplicacion",
-        "date": datetime.now(tz=timezone.utc)
-    }
-    collection_historial.insert_one(document)
+    save_in_db("multiplicacion", body.numeros, resultado)
 
     return {"numeros": body.numeros, "resultado": resultado, "operacion": "multiplicacion"}
 
@@ -161,13 +147,7 @@ def dividir(body: SingleOperationBody):
     for element in numerosADividir:
         resultado = resultado / element
 
-    document = {
-        "resultado": resultado,
-        "numeros": body.numeros,
-        "operacion": "division",
-        "date": datetime.now(tz=timezone.utc)
-    }
-    collection_historial.insert_one(document)
+    save_in_db("division", body.numeros, resultado)
 
     return {"numeros": body.numeros, "resultado": resultado, "operacion": "division"}
 
@@ -178,7 +158,7 @@ def multiple_operacion(operations: MultipleOperationBody):
 
     for operation in operations.operaciones:
         try:
-            # aquí validas cada operación de forma independiente
+    
             singleOperation = SingleOperationBody(numeros=operation.numeros)
 
             if operation.operacion == "suma":

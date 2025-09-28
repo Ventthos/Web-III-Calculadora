@@ -2,12 +2,82 @@ import mongomock
 import pytest
 
 from pymongo import MongoClient
-from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from datetime import datetime
 
 import main
 
 client = TestClient(main.app)
+
+@pytest.mark.parametrize(
+    "numeros, resultado",
+    [
+        ([5,10], True),
+        ([3,35,"aaa"], False),
+        ([5,"lll",3], False),
+        ([2,10,"5",9,7], True)
+    ]
+)
+def test_check_all_elements_are_numbers(numeros, resultado):
+    main.check_all_elements_are_numbers(numeros) == resultado
+
+@pytest.mark.parametrize(
+    "numeros, resultado",
+    [
+        ([5,10], True),
+        ([3,35,"aaa"], False),
+        ([5,-9,3], False),
+        ([2,10,"5",-9,7], False),
+        ([5,34,6,7], True)
+    ]
+)
+def test_check_all_numbers_are_positive(numeros, resultado):
+    main.check_all_numbers_are_positive(numeros) == resultado
+
+def test_format_validation_errors_sin_operacion():
+    errors = [
+        {"loc": ["query", "fecha"], "input": "invalid-date"}
+    ]
+    expected = {
+        "error": ["Error en query -> fecha: 'invalid-date' no es válido."]
+    }
+    assert main.format_validation_errors(errors) == expected
+
+def test_format_validation_errors_con_operacion():
+    errors = [
+        {"loc": ["body", "numeros", 0], "input": "abc"},
+        {"loc": ["body", "operacion"], "input": "potencia"}
+    ]
+    expected = {
+        "error": [
+            "Error en body -> numeros -> 0: 'abc' no es válido.",
+            "Error en body -> operacion: 'potencia' no es válido."
+        ],
+        "operacion": "suma"
+    }
+    assert main.format_validation_errors(errors, operacion="suma") == expected
+
+@pytest.mark.parametrize(
+    "numeros_negativos, operacion",
+    [
+        ([5,-10], "suma"),
+        ([-3,35], "resta"),
+        ([5,-7,3], "multiplicacion"),
+        ([2,10,-5,9,7], "division")
+    ]
+)
+def test_return_negative_number_error(numeros_negativos, operacion):
+    with pytest.raises(HTTPException) as exc_info:
+        main.return_negative_number_error(operacion, numeros_negativos)
+    
+    exc = exc_info.value
+    assert exc.status_code == 400
+    assert exc.detail == {
+        "error": "No se permiten números negativos",
+        "operacion": operacion,
+        "numerosNegativosEnviados": numeros_negativos
+    }
 
 def create_fake_collection():
     fake_mongo_client = mongomock.MongoClient()
@@ -409,17 +479,209 @@ def test_operaciones_division_por_cero_multiples(fake_collection, operations, ex
 
 
 # --> Del historial
-colection = create_fake_collection()
+def format_expected_resultado(expected_data):
+    historial = []
+    for doc in expected_data:
+        historial.append({
+            "numeros": doc["numeros"],
+            "resultado": doc["resultado"],
+            "date": doc["date"].isoformat(),
+            "operacion": doc["operacion"]
+        })
+    return historial
 
-lista_sumas = [
-    [3],
-    [1, 2],
-    [4, 5, 6],
-    [7, 8, 9, 10],
-    [2, 3, 5, 7, 11],
-    [10, 20, 30, 40, 50, 60],
-    [5, 10, 15, 20, 25, 30, 35],
-    [1, 2, 3, 4, 5, 6, 7, 8],
-    [9, 8, 7, 6, 5, 4, 3, 2, 1],
-    [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-]
+
+def llenar_coleccion():
+    collection = create_fake_collection()
+    collection.delete_many({})  
+    docs = [
+        {"numeros": [1, 2], "resultado": 3, "date": datetime(2025, 9, 26, 10, 0), "operacion": "suma"},
+        {"numeros": [5, 5], "resultado": 10, "date": datetime(2025, 9, 26, 11, 0), "operacion": "suma"},
+        {"numeros": [10, 3], "resultado": 7, "date": datetime(2025, 9, 26, 12, 0), "operacion": "resta"},
+        {"numeros": [20, 4], "resultado": 5, "date": datetime(2025, 9, 26, 13, 0), "operacion": "division"},
+        {"numeros": [2, 3], "resultado": 6, "date": datetime(2025, 9, 26, 14, 0), "operacion": "multiplicacion"},
+        {"numeros": [2, 3], "resultado": 6, "date": datetime(2025, 9, 25, 14, 0), "operacion": "multiplicacion"},
+    ]
+    collection.insert_many(docs)
+    return collection
+
+def test_historial_completo(monkeypatch):
+    collection = llenar_coleccion()
+    monkeypatch.setattr(main, "collection_historial", collection)
+
+    response = client.get("/calculadora/historial")
+    assert response.status_code == 200
+
+    expected_historial = [
+        {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+        {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+        {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},
+        {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
+        {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
+        {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"}
+    ]
+
+    assert response.json() == {"historial": expected_historial}
+
+@pytest.mark.parametrize(
+    "ruta, expected_historial",
+    [
+        (
+            "/calculadora/historial?operacion=suma",
+            [
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+            ]
+        ),
+        (
+            "/calculadora/historial?operacion=resta",
+            [
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"}
+            ]
+        ),
+        (
+            "/calculadora/historial?operacion=multiplicacion",
+            [
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"}
+            ]
+        ),
+        (
+            "/calculadora/historial?operacion=division",
+            [
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"}
+            ]
+        ),
+        (
+            "/calculadora/historial?ordenarPor=resultado&orden=asc",
+            [
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"},
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},   
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+            ]
+        ),
+        (
+            "/calculadora/historial?ordenarPor=resultado&orden=desc",
+            [
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"},
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+            ]
+        ),
+        (
+            "/calculadora/historial?ordenarPor=date&orden=asc",
+            [
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
+            ]
+        ),
+        (
+            "/calculadora/historial?ordenarPor=date&orden=desc",
+            [
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"}
+            ]
+        ),
+
+        (
+            "/calculadora/historial?fecha=2025-09-25",
+            [
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"}
+            ]
+        ),
+
+        (
+            "/calculadora/historial?operacion=suma&ordenarPor=resultado&orden=desc",
+            [
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+            ]
+        ),
+        (
+            "/calculadora/historial?operacion=suma&ordenarPor=date&orden=asc",
+            [
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+            ]
+        ),
+    ]
+)
+def test_historial_filtro(monkeypatch, ruta, expected_historial):
+    collection = llenar_coleccion()
+    monkeypatch.setattr(main, "collection_historial", collection)
+    client = TestClient(main.app)
+
+    response = client.get(ruta)
+    assert response.status_code == 200
+    assert response.json() == {"historial": expected_historial}
+
+@pytest.mark.parametrize(
+    "ruta, codigo, expected_detail",
+    [
+        (
+            "/calculadora/historial?operacion=potencia",
+            400,
+            {"error": "Operacion no soportada", "operacion": "potencia"}
+        ),
+        (
+            "/calculadora/historial?fecha=invalid-date",
+            422,
+            {"error": ["Error en query -> fecha: 'invalid-date' no es válido."]}
+        ),
+        (
+            "/calculadora/historial?ordenarPor=nombre&orden=asc",
+            400,
+            {"error": "Ordenar por no soportado", "ordenarPor": "nombre"}
+        ),
+        (
+            "/calculadora/historial?ordenarPor=resultado&orden=up",
+            400,
+            {"error": "Orden no soportado", "orden": "up"}
+        ),
+        (
+            "/calculadora/historial?operacion=raiz&ordenarPor=fecha&orden=sideways",
+            400,
+            {"error": "Operacion no soportada", "operacion": "raiz"}
+        ),
+    ]
+)
+def test_historial_errores(monkeypatch, ruta, codigo, expected_detail):
+    collection = llenar_coleccion()  
+    monkeypatch.setattr(main, "collection_historial", collection)
+
+    response = client.get(ruta)
+    assert response.status_code == codigo
+    assert "detail" in response.json()
+    assert response.json()["detail"] == expected_detail
+
+
+@pytest.mark.parametrize(
+    "operacion, numeros, resultado",
+    [
+        ("suma", [1, 2], 3),
+        ("resta", [5, 3,1], 1),
+        ("multiplicacion", [2, 3,2,2], 24),
+        ("division", [10, 2], 5)
+    ]
+)
+def test_save_in_db(fake_collection, operacion, numeros, resultado):
+    main.save_in_db(operacion, numeros, resultado)
+    doc = fake_collection.find_one({"operacion": operacion})
+    assert doc["operacion"] == operacion
+    assert doc["numeros"] == numeros
+    assert doc["resultado"] == resultado
+    assert type(doc["date"]) == datetime
