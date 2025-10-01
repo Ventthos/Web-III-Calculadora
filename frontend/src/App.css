@@ -161,3 +161,9 @@ h1,h2,h3,p{
   padding: 0.8rem;
   border-radius: 1rem;
 }
+
+.camposNumeros{
+  padding: 1rem;
+  max-height: 40rem ;
+  overflow-y: auto;
+}

@@ -9,6 +9,7 @@ from models.MultipleOperationBody import MultipleOperationBody
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from zoneinfo import ZoneInfo
 
 app = FastAPI()
 app.add_middleware(
@@ -72,7 +73,7 @@ def return_negative_number_error(operacion: str, numeros: list):
         }
     )
 
-def save_in_db(operacion: str, numeros: list, resultado: float):
+def save_in_db(operacion: str, numeros: list, resultado: float):     
     document = {
         "resultado": resultado,
         "numeros": numeros,
@@ -190,49 +191,52 @@ def multiple_operacion(operations: MultipleOperationBody):
 
 
 @app.get("/calculadora/historial")
-def obtener_historial(operacion: str = None, fecha: datetime = None, ordenarPor: str = None, orden: str = None):
-    if operacion != None and operacion not in ("suma", "resta", "multiplicacion", "division"):
+def obtener_historial(
+    operacion: str = None,
+    fecha: datetime = None,
+    ordenarPor: str = None,
+    orden: str = None
+):
+    if operacion and operacion not in ("suma", "resta", "multiplicacion", "division"):
         raise HTTPException(
             status_code=400,
-            detail={
-                "error": "Operacion no soportada",
-                "operacion": operacion
-            }
+            detail={"error": "Operacion no soportada", "operacion": operacion}
         )
-    if fecha != None and type(fecha) != datetime:
+
+    if fecha and type(fecha) != datetime:
         raise HTTPException(
             status_code=400,
-            detail={
-                "error": "Fecha no valida",
-                "fecha": fecha
-            }
+            detail={"error": "Fecha no valida", "fecha": fecha}
         )
-    if ordenarPor != None and ordenarPor not in ("date", "resultado"):
+
+    if ordenarPor and ordenarPor not in ("date", "resultado"):
         raise HTTPException(
             status_code=400,
-            detail={
-                "error": "Ordenar por no soportado",
-                "ordenarPor": ordenarPor
-            }
+            detail={"error": "Ordenar por no soportado", "ordenarPor": ordenarPor}
         )
-    
-    if orden != None and orden not in ("asc", "desc"):
+
+    if orden and orden not in ("asc", "desc"):
         raise HTTPException(
             status_code=400,
-            detail={
-                "error": "Orden no soportado",
-                "orden": orden
-            }
+            detail={"error": "Orden no soportado", "orden": orden}
         )
-    
+
     filtro = {}
+
     if operacion:
         filtro["operacion"] = operacion
+
     if fecha:
-        filtro["date"] = {
-            "$gte": datetime(fecha.year, fecha.month, fecha.day),
-            "$lt": datetime(fecha.year, fecha.month, fecha.day, 23, 59, 59)
-        }
+        # Interpretar la fecha como hora de México
+        tz_mex = ZoneInfo("America/Mexico_City")
+
+        inicio_mex = datetime(fecha.year, fecha.month, fecha.day, 0, 0, 0, tzinfo=tz_mex)
+        fin_mex = datetime(fecha.year, fecha.month, fecha.day, 23, 59, 59, tzinfo=tz_mex)
+
+        inicio_utc = inicio_mex.astimezone(ZoneInfo("UTC"))
+        fin_utc = fin_mex.astimezone(ZoneInfo("UTC"))
+
+        filtro["date"] = {"$gte": inicio_utc, "$lt": fin_utc}
 
     orden_mongo = ASCENDING if orden == "asc" else DESCENDING
     sort = [(ordenarPor, orden_mongo)] if ordenarPor else None
@@ -243,12 +247,14 @@ def obtener_historial(operacion: str = None, fecha: datetime = None, ordenarPor:
 
     historial = []
     for doc in cursor:
+        fecha_mex = doc["date"].astimezone(ZoneInfo("America/Mexico_City"))
         historial.append({
             "numeros": doc["numeros"],
             "resultado": doc["resultado"],
-            "date": doc["date"].isoformat(),
+            "date": fecha_mex.isoformat(),
             "operacion": doc["operacion"]
         })
+
     return {"historial": historial}
 
 

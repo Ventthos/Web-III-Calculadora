@@ -202,7 +202,7 @@ function App() {
       </div>
 
       <div className='display-2-columnas'>
-        <form>
+        <form className='camposNumeros'>
           {
             Array.from({ length: cantidadNumeros }).map((_, index) => (
               <InputLabel key={index+1} id={index+1} onChange={handleNumeroChange} />

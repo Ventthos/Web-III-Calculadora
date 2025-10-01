@@ -513,15 +513,34 @@ def test_historial_completo(monkeypatch):
     assert response.status_code == 200
 
     expected_historial = [
-        {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
-        {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
-        {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},
-        {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
-        {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
-        {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"}
+        {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00-06:00", "operacion": "suma"},
+        {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00-06:00", "operacion": "suma"},
+        {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00-06:00", "operacion": "resta"},
+        {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00-06:00", "operacion": "division"},
+        {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00-06:00", "operacion": "multiplicacion"},
+        {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00-06:00", "operacion": "multiplicacion"}
     ]
 
     assert response.json() == {"historial": expected_historial}
+
+def test_historial_completo(monkeypatch):
+    collection = llenar_coleccion()
+    monkeypatch.setattr(main, "collection_historial", collection)
+
+    response = client.get("/calculadora/historial")
+    assert response.status_code == 200
+
+    expected_historial = [
+        {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00-06:00", "operacion": "suma"},
+        {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00-06:00", "operacion": "suma"},
+        {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00-06:00", "operacion": "resta"},
+        {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00-06:00", "operacion": "division"},
+        {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00-06:00", "operacion": "multiplicacion"},
+        {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00-06:00", "operacion": "multiplicacion"}
+    ]
+
+    assert response.json() == {"historial": expected_historial}
+
 
 @pytest.mark.parametrize(
     "ruta, expected_historial",
@@ -529,93 +548,91 @@ def test_historial_completo(monkeypatch):
         (
             "/calculadora/historial?operacion=suma",
             [
-                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
-                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00-06:00", "operacion": "suma"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00-06:00", "operacion": "suma"},
             ]
         ),
         (
             "/calculadora/historial?operacion=resta",
             [
-                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"}
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00-06:00", "operacion": "resta"}
             ]
         ),
         (
             "/calculadora/historial?operacion=multiplicacion",
             [
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"}
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00-06:00", "operacion": "multiplicacion"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00-06:00", "operacion": "multiplicacion"}
             ]
         ),
         (
             "/calculadora/historial?operacion=division",
             [
-                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"}
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00-06:00", "operacion": "division"}
             ]
         ),
         (
             "/calculadora/historial?ordenarPor=resultado&orden=asc",
             [
-                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
-                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"},
-                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},   
-                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00-06:00", "operacion": "suma"},
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00-06:00", "operacion": "division"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00-06:00", "operacion": "multiplicacion"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00-06:00", "operacion": "multiplicacion"},
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00-06:00", "operacion": "resta"},   
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00-06:00", "operacion": "suma"},
             ]
         ),
         (
             "/calculadora/historial?ordenarPor=resultado&orden=desc",
             [
-                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
-                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"},
-                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
-                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00-06:00", "operacion": "suma"},
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00-06:00", "operacion": "resta"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00-06:00", "operacion": "multiplicacion"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00-06:00", "operacion": "multiplicacion"},
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00-06:00", "operacion": "division"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00-06:00", "operacion": "suma"},
             ]
         ),
         (
             "/calculadora/historial?ordenarPor=date&orden=asc",
             [
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"},
-                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
-                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
-                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},
-                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00-06:00", "operacion": "multiplicacion"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00-06:00", "operacion": "suma"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00-06:00", "operacion": "suma"},
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00-06:00", "operacion": "resta"},
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00-06:00", "operacion": "division"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00-06:00", "operacion": "multiplicacion"},
             ]
         ),
         (
             "/calculadora/historial?ordenarPor=date&orden=desc",
             [
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00", "operacion": "multiplicacion"},
-                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00", "operacion": "division"},
-                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00", "operacion": "resta"},
-                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
-                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"}
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-26T14:00:00-06:00", "operacion": "multiplicacion"},
+                {"numeros": [20, 4], "resultado": 5, "date": "2025-09-26T13:00:00-06:00", "operacion": "division"},
+                {"numeros": [10, 3], "resultado": 7, "date": "2025-09-26T12:00:00-06:00", "operacion": "resta"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00-06:00", "operacion": "suma"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00-06:00", "operacion": "suma"},
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00-06:00", "operacion": "multiplicacion"}
             ]
         ),
-
         (
             "/calculadora/historial?fecha=2025-09-25",
             [
-                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00", "operacion": "multiplicacion"}
+                {"numeros": [2, 3], "resultado": 6, "date": "2025-09-25T14:00:00-06:00", "operacion": "multiplicacion"}
             ]
         ),
-
         (
             "/calculadora/historial?operacion=suma&ordenarPor=resultado&orden=desc",
             [
-                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
-                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00-06:00", "operacion": "suma"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00-06:00", "operacion": "suma"},
             ]
         ),
         (
             "/calculadora/historial?operacion=suma&ordenarPor=date&orden=asc",
             [
-                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00", "operacion": "suma"},
-                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00", "operacion": "suma"},
+                {"numeros": [1, 2], "resultado": 3, "date": "2025-09-26T10:00:00-06:00", "operacion": "suma"},
+                {"numeros": [5, 5], "resultado": 10, "date": "2025-09-26T11:00:00-06:00", "operacion": "suma"},
             ]
         ),
     ]
