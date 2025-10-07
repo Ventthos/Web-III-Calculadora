@@ -76,7 +76,7 @@ def multiplicar(a: float, b: float):
     """
     Divide dos números que vienen como parámetros de query (?a=...&b=...)
     Ejemplo: /calculadora/resta?a=5&b=10
-    Cambio
+    
     """
     resultado = "indefinido"
     if(b != 0):
