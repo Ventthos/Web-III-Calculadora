@@ -32,11 +32,12 @@ jobs:
           else
             echo "TAG=latest" >> $GITHUB_ENV
           fi
+          echo "REPO_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${{ github.repository }}:${{ env.TAG }} ./backend
+          docker build -t ghcr.io/${{ env.REPO_NAME }}:${{ env.TAG }} ./backend
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/${{ github.repository }}:${{ env.TAG }}
+          docker push ghcr.io/${{ env.REPO_NAME }}:${{ env.TAG }}
