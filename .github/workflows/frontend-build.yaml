@@ -3,7 +3,7 @@ name: Build and Push docker Image
 on:
   push:
     paths:
-        - 'frontend/**' 
+      - 'frontend/**' 
     branches: ["main"]
     tags:
       - "v*.*.*"
@@ -43,7 +43,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${{ env.REPO_NAME }}:${{ env.TAG }} ./backend
+          docker build -t ghcr.io/${{ env.REPO_NAME }}:${{ env.TAG }} ./frontend
 
       - name: Push Docker image
         run: |
