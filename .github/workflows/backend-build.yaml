@@ -1,15 +1,10 @@
-name: Build and Push docker Image
+name: Build and Push Backend Docker Image
 
 on:
   push:
     paths:
-        - 'frontend/**' 
+      - 'backend/**'
     branches: ["main"]
-    tags:
-      - "v*.*.*"
-  pull_request:
-    paths:
-      - 'frontend/**'
     tags:
       - "v*.*.*"
 
@@ -34,17 +29,19 @@ jobs:
       - name: Determine image tags
         id: vars
         run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          # Detectar si es un tag o un push normal
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
           else
-            echo "TAG=latest" >> $GITHUB_ENV
+            TAG="latest"
           fi
+          echo "TAG=$TAG" >> $GITHUB_ENV
           echo "REPO_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${{ env.REPO_NAME }}:${{ env.TAG }} ./backend
+          docker build -t ghcr.io/${{ env.REPO_NAME }}/backend:${{ env.TAG }} ./backend
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/${{ env.REPO_NAME }}:${{ env.TAG }}
+          docker push ghcr.io/${{ env.REPO_NAME }}/backend:${{ env.TAG }}
