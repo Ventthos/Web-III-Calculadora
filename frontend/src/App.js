@@ -101,7 +101,7 @@ function App() {
   return (
     <div style={{ padding: 20}}>
       <div>
-        <h1>Calculadora</h1>
+        <h1>Calculadora </h1>
         <div className='botonesRow'>
           <button className='botonArrow' onClick={cambiarModoAtras}><IoIosArrowBack/></button>
           <p>Modo: {returnModoString(modo)}</p>
