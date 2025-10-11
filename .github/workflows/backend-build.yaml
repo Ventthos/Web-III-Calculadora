@@ -40,8 +40,8 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${{ env.REPO_NAME }}/frontend:${{ env.TAG }} ./backend
+          docker build -t ghcr.io/${{ env.REPO_NAME }}/backend:${{ env.TAG }} ./backend
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/${{ env.REPO_NAME }}/frontend:${{ env.TAG }}
+          docker push ghcr.io/${{ env.REPO_NAME }}/backend:${{ env.TAG }}

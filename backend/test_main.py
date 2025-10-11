@@ -7,8 +7,6 @@ from fastapi.testclient import TestClient
 
 import main
 
-#tests
-
 client = TestClient(main.app)
 fake_mongo_client = mongomock.MongoClient()
 database = fake_mongo_client.practica1
