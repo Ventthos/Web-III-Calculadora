@@ -2,9 +2,9 @@ name: Build and Push Frontend Docker Image
 
 on:
   push:
+    branches: ["main"]
     paths:
       - 'frontend/**'
-    branches: ["main"]
     tags:
       - "v*.*.*"
 
@@ -29,6 +29,7 @@ jobs:
       - name: Determine image tags
         id: vars
         run: |
+          # Detectar si es un tag o un push normal
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
           else
