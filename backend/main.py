@@ -14,7 +14,7 @@ app.add_middleware(
 )
 
 # Conexión a MongoDB
-mongo_client = MongoClient("mongodb://admin_user:web3@practicas-mongo-1:27017/")
+mongo_client = MongoClient("mongodb://admin_user:web3@mongo:27017/")
 database = mongo_client["practica1"]
 collection_historial = database["historial"]
 
