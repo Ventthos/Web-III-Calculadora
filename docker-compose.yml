@@ -13,7 +13,7 @@ services:
       - mongo-network
 
   calculadora:
-    image: calculadora-fast-api:latest
+    image: ghcr.io/ventthos/web-iii-calculadora/backend:latest
     ports:
       - "8089:8000"
     networks:
