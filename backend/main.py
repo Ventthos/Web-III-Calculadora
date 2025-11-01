@@ -3,6 +3,9 @@ from fastapi import FastAPI
 from pymongo import MongoClient
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+from loki_logger_handler.loki_logger_handler import LokiLoggerHandler
+import logging
+import os
 
 app = FastAPI()
 app.add_middleware(
@@ -18,6 +21,27 @@ mongo_client = MongoClient("mongodb://admin_user:web3@mongo:27017/")
 database = mongo_client["practica1"]
 collection_historial = database["historial"]
 
+logging_data = os.getenv("LOG_LEVEL", "INFO").upper()
+
+logger = logging.getLogger("custom_logger")
+logger.setLevel(logging.DEBUG)  
+
+if logging_data == "DEBUG":
+    logger.setLevel(logging.DEBUG)
+elif logging_data == "INFO":
+    logger.setLevel(logging.INFO)
+
+custom_handler = LokiLoggerHandler(
+    url="http://loki:3100/api/v1/push",
+    labels={"application": "FastApi"},
+    label_keys={},
+    timeout=10
+)
+
+logger.addHandler(custom_handler)
+logger.info("Logger initialized")
+
+
 @app.get("/calculadora/sum")
 def sumar(a: float, b: float):
     """
@@ -32,6 +56,9 @@ def sumar(a: float, b: float):
         "operacion": "suma",
         "date": datetime.datetime.now(tz=datetime.timezone.utc),
     }
+    logger.info(f"Operación suma exitoso")
+    logger.debug(f"Operación suma: a={a}, b={b}, resultado={resultado}")
+
     collection_historial.insert_one(document)
 
     return {"a": a, "b": b, "resultado": resultado}
@@ -50,6 +77,9 @@ def restar(a: float, b: float):
         "operacion": "resta",
         "date": datetime.datetime.now(tz=datetime.timezone.utc),
     }
+    logger.info(f"Operación resta exitoso")
+    logger.debug(f"Operación resta: a={a}, b={b}, resultado={resultado}")
+
     collection_historial.insert_one(document)
 
     return {"a": a, "b": b, "resultado": resultado}
@@ -68,6 +98,9 @@ def multiplicar(a: float, b: float):
         "operacion": "multiplicacion",
         "date": datetime.datetime.now(tz=datetime.timezone.utc),
     }
+    logger.info(f"Operación multiplicar exitoso")
+    logger.debug(f"Operación multiplicar: a={a}, b={b}, resultado={resultado}")
+
     collection_historial.insert_one(document)
 
     return {"a": a, "b": b, "resultado": resultado}
@@ -90,6 +123,9 @@ def multiplicar(a: float, b: float):
         "operacion": "division",
         "date": datetime.datetime.now(tz=datetime.timezone.utc),
     }
+    logger.info(f"Operación dividir exitoso")
+    logger.debug(f"Operación dividir: a={a}, b={b}, resultado={resultado}")
+
     collection_historial.insert_one(document)
 
     return {"a": a, "b": b, "resultado": resultado}
