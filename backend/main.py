@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from loki_logger_handler.loki_logger_handler import LokiLoggerHandler
 import logging
-import os
+import os, sys
 
 app = FastAPI()
 app.add_middleware(
@@ -21,26 +21,34 @@ mongo_client = MongoClient("mongodb://admin_user:web3@mongo:27017/")
 database = mongo_client["practica1"]
 collection_historial = database["historial"]
 
-logging_data = os.getenv("LOG_LEVEL", "INFO").upper()
-
+# Set up logging
 logger = logging.getLogger("custom_logger")
-logger.setLevel(logging.DEBUG)  
+logging_data = os.getenv("LOG_LEVEL", "INFO").upper()
 
 if logging_data == "DEBUG":
     logger.setLevel(logging.DEBUG)
-elif logging_data == "INFO":
+else:
     logger.setLevel(logging.INFO)
 
-custom_handler = LokiLoggerHandler(
-    url="http://loki:3100/api/v1/push",
+# Create a console handler
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logger.level)
+formatter = logging.Formatter(
+    "%(levelname)s: %(asctime)s - %(name)s - %(message)s"
+)
+console_handler.setFormatter(formatter)
+
+# Create an instance of the custom handler
+loki_handler = LokiLoggerHandler(
+    url="http://loki:3100/loki/api/v1/push",
     labels={"application": "FastApi"},
     label_keys={},
-    timeout=10
+    timeout=10,
 )
 
-logger.addHandler(custom_handler)
+logger.addHandler(loki_handler)
+logger.addHandler(console_handler)
 logger.info("Logger initialized")
-
 
 @app.get("/calculadora/sum")
 def sumar(a: float, b: float):
