@@ -10,6 +10,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from zoneinfo import ZoneInfo
+from prometheus_fastapi_instrumentator import Instrumentator
+from loki_logger_handler.loki_logger_handler import LokiLoggerHandler
+import logging
+import os, sys
 
 app = FastAPI()
 app.add_middleware(
@@ -19,6 +23,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Set up logging
+logger = logging.getLogger("custom_logger")
+logging_data = os.getenv("LOG_LEVEL", "INFO").upper()
+
+if logging_data == "DEBUG":
+    logger.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
+
+# Create a console handler
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logger.level)
+formatter = logging.Formatter(
+    "%(levelname)s: %(asctime)s - %(name)s - %(message)s"
+)
+console_handler.setFormatter(formatter)
+
+# Create an instance of the custom handler
+loki_handler = LokiLoggerHandler(
+    url="http://loki:3100/loki/api/v1/push",
+    labels={"application": "FastApi"},
+    label_keys={},
+    timeout=10,
+)
+
+logger.addHandler(loki_handler)
+logger.addHandler(console_handler)
+logger.info("Logger initialized")
 
 def format_validation_errors(errors, operacion: str = None):
     errores = []
@@ -257,4 +290,4 @@ def obtener_historial(
 
     return {"historial": historial}
 
-
+Instrumentator().instrument(app).expose(app)
