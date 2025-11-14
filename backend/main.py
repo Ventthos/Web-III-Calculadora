@@ -97,6 +97,7 @@ def check_all_numbers_are_positive(array):
     return True
 
 def return_negative_number_error(operacion: str, numeros: list):
+
     raise HTTPException(
         status_code=400,
         detail={
@@ -105,6 +106,9 @@ def return_negative_number_error(operacion: str, numeros: list):
             "numerosNegativosEnviados": numeros
         }
     )
+
+def write_in_log_negative_number_error(operacion: str, numeros: list):
+    logger.error(f"Se han enviado números negativos en la operación {operacion}: {numeros}")
 
 def save_in_db(operacion: str, numeros: list, resultado: float):     
     document = {
@@ -120,6 +124,7 @@ def sumar(body: SingleOperationBody):
     resultado = 0
     if not check_all_numbers_are_positive(body.numeros):
         negativeNumbers = [element for element in body.numeros if element < 0]
+        write_in_log_negative_number_error("suma", negativeNumbers)
         return return_negative_number_error("suma", negativeNumbers)
 
     for element in body.numeros:
@@ -127,12 +132,16 @@ def sumar(body: SingleOperationBody):
 
     save_in_db("suma", body.numeros, resultado)
 
+    logger.info("Operación suma exitosa")
+    logger.debug(f"Operación suma: numeros={body.numeros}, resultado={resultado}")
+
     return {"numeros": body.numeros, "resultado": resultado, "operacion": "suma"}
 
 @app.post("/calculadora/resta")
 def restar(body: SingleOperationBody):  
     if not check_all_numbers_are_positive(body.numeros):
         negativeNumbers = [element for element in body.numeros if element < 0]
+        write_in_log_negative_number_error("resta", negativeNumbers)
         return return_negative_number_error("resta", negativeNumbers)
     
     resultado = body.numeros[0]
@@ -142,6 +151,9 @@ def restar(body: SingleOperationBody):
 
     save_in_db("resta", body.numeros, resultado)
 
+    logger.info("Operación resta exitosa")
+    logger.debug(f"Operación resta: numeros={body.numeros}, resultado={resultado}")
+
     return {"numeros": body.numeros, "resultado": resultado, "operacion": "resta"}
 
 @app.post("/calculadora/mult")
@@ -149,12 +161,16 @@ def multiplicar(body: SingleOperationBody):
     resultado = 1
     if not check_all_numbers_are_positive(body.numeros):
         negativeNumbers = [element for element in body.numeros if element < 0]
+        write_in_log_negative_number_error("multiplicacion", negativeNumbers)
         return return_negative_number_error("multiplicacion", negativeNumbers)
 
     for element in body.numeros:
         resultado = resultado * element
 
     save_in_db("multiplicacion", body.numeros, resultado)
+
+    logger.info("Operación multiplicación exitosa")
+    logger.debug(f"Operación multiplicación: numeros={body.numeros}, resultado={resultado}")
 
     return {"numeros": body.numeros, "resultado": resultado, "operacion": "multiplicacion"}
 
@@ -163,12 +179,14 @@ def multiplicar(body: SingleOperationBody):
 def dividir(body: SingleOperationBody):
     if not check_all_numbers_are_positive(body.numeros):
         negativeNumbers = [element for element in body.numeros if element < 0]
+        write_in_log_negative_number_error("division", negativeNumbers)
         return return_negative_number_error("division", negativeNumbers)
 
     resultado = body.numeros[0]
     numerosADividir = body.numeros[1:]
 
     if 0 in numerosADividir:
+        logger.error("Se intentó dividir entre 0")
         raise HTTPException(
             status_code=403,
             detail={
@@ -182,6 +200,9 @@ def dividir(body: SingleOperationBody):
         resultado = resultado / element
 
     save_in_db("division", body.numeros, resultado)
+
+    logger.info("Operación división exitosa")
+    logger.debug(f"Operación división: numeros={body.numeros}, resultado={resultado}")
 
     return {"numeros": body.numeros, "resultado": resultado, "operacion": "division"}
 
@@ -231,24 +252,28 @@ def obtener_historial(
     orden: str = None
 ):
     if operacion and operacion not in ("suma", "resta", "multiplicacion", "division"):
+        logger.error(f"Se intentó filtrar por una operación no válida: {operacion}")
         raise HTTPException(
             status_code=400,
             detail={"error": "Operacion no soportada", "operacion": operacion}
         )
 
     if fecha and type(fecha) != datetime:
+        logger.error(f"La fecha proporcionada para filtrar no era válida: {fecha}")
         raise HTTPException(
             status_code=400,
             detail={"error": "Fecha no valida", "fecha": fecha}
         )
 
     if ordenarPor and ordenarPor not in ("date", "resultado"):
+        logger.error(f"Se ordenar por un tipo de dato no soportado: {ordenarPor}")
         raise HTTPException(
             status_code=400,
             detail={"error": "Ordenar por no soportado", "ordenarPor": ordenarPor}
         )
 
     if orden and orden not in ("asc", "desc"):
+        logger.error(f"Se ordenar por un tipo de orden no soportado: {orden}")
         raise HTTPException(
             status_code=400,
             detail={"error": "Orden no soportado", "orden": orden}
