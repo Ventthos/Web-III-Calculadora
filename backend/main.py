@@ -71,15 +71,21 @@ def format_validation_errors(errors, operacion: str = None):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"Error de validación en la solicitud: {format_validation_errors(exc.errors())}")
     return JSONResponse(
         status_code=422,
         content={"detail": format_validation_errors(exc.errors())}
     )
 
 # Conexión a MongoDB
-mongo_client = MongoClient("mongodb://admin_user:web3@mongo:27017")
-database = mongo_client["practica1"]
-collection_historial = database["historial"]
+try:
+    mongo_client = MongoClient("mongodb://admin_user:web3@mongo:27017", serverSelectionTimeoutMS=5000)
+    database = mongo_client["practica1"]
+    collection_historial = database["historial"]
+    logger.debug("Conexión a MongoDB exitosa")
+except Exception as e:
+    logger.critical(f"No se pudo conectar a MongoDB: {e}")
+    raise RuntimeError("Error crítico: no se pudo conectar a la base de datos")
 
 def check_all_elements_are_numbers(array):
     if type(array) != list:
@@ -107,24 +113,27 @@ def return_negative_number_error(operacion: str, numeros: list):
         }
     )
 
-def write_in_log_negative_number_error(operacion: str, numeros: list):
-    logger.error(f"Se han enviado números negativos en la operación {operacion}: {numeros}")
-
-def save_in_db(operacion: str, numeros: list, resultado: float):     
+def save_in_db(operacion: str, numeros: list, resultado: float):
     document = {
         "resultado": resultado,
         "numeros": numeros,
         "operacion": operacion,
         "date": datetime.now(tz=timezone.utc)
     }
-    collection_historial.insert_one(document)
+
+    try:
+        collection_historial.insert_one(document)
+        logger.debug(f"Documento guardado correctamente en DB: operacion={operacion}, numeros={numeros}, resultado={resultado}")
+    except Exception as e:
+        logger.critical(f"Fallo al guardar documento en MongoDB: operacion={operacion}, numeros={numeros}, resultado={resultado}, error={e}")
+        raise HTTPException(status_code=500, detail="Error interno al guardar operación en la base de datos")
 
 @app.post("/calculadora/sum")
 def sumar(body: SingleOperationBody):
     resultado = 0
     if not check_all_numbers_are_positive(body.numeros):
         negativeNumbers = [element for element in body.numeros if element < 0]
-        write_in_log_negative_number_error("suma", negativeNumbers)
+        logger.error(f"Se han enviado números negativos en la operación suma: {negativeNumbers}")
         return return_negative_number_error("suma", negativeNumbers)
 
     for element in body.numeros:
@@ -141,7 +150,7 @@ def sumar(body: SingleOperationBody):
 def restar(body: SingleOperationBody):  
     if not check_all_numbers_are_positive(body.numeros):
         negativeNumbers = [element for element in body.numeros if element < 0]
-        write_in_log_negative_number_error("resta", negativeNumbers)
+        logger.error(f"Se han enviado números negativos en la operación resta: {negativeNumbers}")
         return return_negative_number_error("resta", negativeNumbers)
     
     resultado = body.numeros[0]
@@ -161,7 +170,7 @@ def multiplicar(body: SingleOperationBody):
     resultado = 1
     if not check_all_numbers_are_positive(body.numeros):
         negativeNumbers = [element for element in body.numeros if element < 0]
-        write_in_log_negative_number_error("multiplicacion", negativeNumbers)
+        logger.error(f"Se han enviado números negativos en la operación multiplicación: {negativeNumbers}")
         return return_negative_number_error("multiplicacion", negativeNumbers)
 
     for element in body.numeros:
@@ -179,7 +188,7 @@ def multiplicar(body: SingleOperationBody):
 def dividir(body: SingleOperationBody):
     if not check_all_numbers_are_positive(body.numeros):
         negativeNumbers = [element for element in body.numeros if element < 0]
-        write_in_log_negative_number_error("division", negativeNumbers)
+        logger.error(f"Se han enviado números negativos en la operación división: {negativeNumbers}")
         return return_negative_number_error("division", negativeNumbers)
 
     resultado = body.numeros[0]
@@ -312,6 +321,12 @@ def obtener_historial(
             "date": fecha_mex.isoformat(),
             "operacion": doc["operacion"]
         })
+
+    logger.info(
+        f"Historial obtenido. Filtros: operacion={operacion}, fecha={fecha}, ordenarPor={ordenarPor}, orden={orden}"
+    )
+
+    logger.debug(f"Historial obtenido: {historial}")
 
     return {"historial": historial}
 
